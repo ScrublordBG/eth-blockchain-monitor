@@ -244,19 +244,6 @@ class EthereumMonitor extends EventEmitter {
       return false;
     }
 
-    // Custom matching function
-    if (config.customMatchFunction) {
-      try {
-        // Create a safe function from the stored string
-        // This is a potential security risk if the configuration data is not validated properly
-        const matchFn = new Function("tx", "ethers", `return (${config.customMatchFunction})(tx, ethers);`);
-        return matchFn(transaction, ethers);
-      } catch (error) {
-        console.error(`Error executing custom match function for config ${config.id}:`, error);
-        return false;
-      }
-    }
-
     // If all conditions pass, it's a match
     return true;
   }

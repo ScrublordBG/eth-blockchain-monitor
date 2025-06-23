@@ -40,16 +40,10 @@ class Configuration extends Model {
           type: DataTypes.STRING,
           allowNull: true,
         },
-
         blockDelay: {
           type: DataTypes.INTEGER,
           allowNull: true,
           defaultValue: 0,
-        },
-        customMatchFunction: {
-          type: DataTypes.TEXT,
-          allowNull: true,
-          comment: "JavaScript function as string to evaluate for custom matching logic",
         },
         createdAt: {
           type: DataTypes.DATE,
