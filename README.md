@@ -119,7 +119,7 @@ When creating or updating a configuration, you can use the following options:
   "name": "High Value Transfers",
   "description": "Monitor transactions with value greater than 100 ETH",
   "active": true,
-  "minValue": "100000000000000000000"
+  "minValue": "100000000000000000000" // eth value in wei
 }
 ```
 ## License
