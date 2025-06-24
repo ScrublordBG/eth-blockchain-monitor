@@ -94,7 +94,14 @@ class EthereumMonitor extends EventEmitter {
       this.lastProcessedBlock = latestBlock;
       console.log(`Starting from block #${latestBlock}`);
 
-      await this.processBlock(latestBlock);
+      // Process initial block asynchronously to avoid blocking server startup
+      setTimeout(async () => {
+        try {
+          await this.processBlock(latestBlock);
+        } catch (error) {
+          console.error(`Error processing initial block #${latestBlock}:`, error);
+        }
+      }, 100);
 
       // Listen for new blocks
       this.provider.on("block", async (blockNumber) => {
@@ -201,7 +208,6 @@ class EthereumMonitor extends EventEmitter {
         // Check transaction against all configurations
         for (const config of configurations) {
           if (this.matchesConfiguration(tx, config)) {
-
             let txReceipt = null;
             const needsReceipt =
               tx.to === null || // Contract creation
