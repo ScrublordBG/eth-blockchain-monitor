@@ -129,13 +129,12 @@ class EthereumMonitor extends EventEmitter {
       console.error("Error stopping Ethereum monitoring:", error);
     }
   }
-
   async processBlock(blockNumber) {
     console.log(`Processing block #${blockNumber}`);
 
     try {
-      // Get block with transactions
-      const block = await this.provider.getBlock(blockNumber, true);
+      // Get block with transaction hashes
+      const block = await this.provider.getBlock(blockNumber);
 
       if (!block) {
         console.warn(`Block #${blockNumber} not found`);
@@ -154,7 +153,6 @@ class EthereumMonitor extends EventEmitter {
       return false;
     }
   }
-
   async processDelayedBlocks(currentBlockNumber) {
     // Process all delayed configurations
     for (const [delay, configs] of this.blockDelayMap.entries()) {
@@ -163,8 +161,8 @@ class EthereumMonitor extends EventEmitter {
         try {
           console.log(`Processing delayed block #${targetBlockNumber} with delay ${delay}`);
 
-          // Get block with transactions
-          const block = await this.provider.getBlock(targetBlockNumber, true);
+          // Get block with transaction hashes
+          const block = await this.provider.getBlock(targetBlockNumber);
 
           if (!block) {
             console.warn(`Delayed block #${targetBlockNumber} not found`);
@@ -179,7 +177,6 @@ class EthereumMonitor extends EventEmitter {
       }
     }
   }
-
   async processBlockTransactions(block, configurations) {
     if (!block || !block.transactions || block.transactions.length === 0) {
       return;
@@ -188,16 +185,31 @@ class EthereumMonitor extends EventEmitter {
     // Get block timestamp
     const timestamp = new Date(block.timestamp * 1000);
 
-    // Process each transaction
-    for (const tx of block.transactions) {
+    // Process each transaction hash by fetching the full transaction details
+    for (const txHash of block.transactions) {
       try {
+        // Add a delay to avoid rate limiting (200ms between requests)
+        await this.sleep(200);
+
+        // Get full transaction details
+        const tx = await this.provider.getTransaction(txHash);
+
+        if (!tx) {
+          console.warn(`Transaction ${txHash} not found`);
+          continue;
+        }
+
         // Check transaction against all configurations
         for (const config of configurations) {
           if (this.matchesConfiguration(tx, config)) {
             console.log(`Transaction ${tx.hash} matches configuration ${config.name}`);
 
+            // Add another delay before getting the receipt
+            await this.sleep(200);
+
             // Get additional transaction details if needed
             const txReceipt = await this.provider.getTransactionReceipt(tx.hash);
+            console.log("Tx Value:", tx);
 
             // Save the transaction
             await this.transactionService.saveTransaction({
@@ -206,46 +218,67 @@ class EthereumMonitor extends EventEmitter {
               blockNumber: block.number,
               blockHash: block.hash,
               from: tx.from,
-              to: tx.to,
-              value: tx.value.toString(),
-              gasUsed: txReceipt ? txReceipt.gasUsed.toString() : "0",
-              gasPrice: tx.gasPrice.toString(),
+              to: tx.to || null, // Handle contract creation transactions
+              value: tx.value ? tx.value.toString() : "0",
+              gasUsed: txReceipt && txReceipt.gasUsed ? txReceipt.gasUsed.toString() : "0",
+              gasPrice: tx.gasPrice ? tx.gasPrice.toString() : "0",
               input: tx.data || "0x",
               nonce: tx.nonce,
               contractAddress: txReceipt ? txReceipt.contractAddress : null,
               status: txReceipt ? txReceipt.status : null,
               timestamp,
-              rawData: tx,
+              rawData: JSON.stringify(tx),
             });
           }
         }
       } catch (error) {
-        console.error(`Error processing transaction ${tx.hash}:`, error);
+        console.error(`Error processing transaction ${typeof txHash === "string" ? txHash : "unknown"}:`, error);
       }
     }
   }
-
   matchesConfiguration(transaction, config) {
-    // Address matching
-    if (config.fromAddress && transaction.from.toLowerCase() !== config.fromAddress.toLowerCase()) {
+    try {
+      if (config.fromAddress && transaction.from && transaction.from.toLowerCase() !== config.fromAddress.toLowerCase()) {
+        console.log(`From address doesn't match: ${transaction.from} vs ${config.fromAddress}`);
+        return false;
+      }
+
+      if (config.toAddress && transaction.to && transaction.to.toLowerCase() !== config.toAddress.toLowerCase()) {
+        console.log(`To address doesn't match: ${transaction.to} vs ${config.toAddress}`);
+        return false;
+      }
+
+      if (config.minValue) {
+        const txValue = transaction.value || 0n; // Default to 0 if undefined
+        const minValue = ethers.getBigInt(config.minValue);
+
+        if (txValue < minValue) {
+          console.log(`Value below minimum: ${txValue} < ${minValue}`);
+          return false;
+        }
+      }
+
+      if (config.maxValue) {
+        const txValue = transaction.value || 0n; // Default to 0 if undefined
+        const maxValue = ethers.getBigInt(config.maxValue);
+
+        if (txValue > maxValue) {
+          console.log(`Value above maximum: ${txValue} > ${maxValue}`);
+          return false;
+        }
+      }
+
+      console.log(`Transaction ${transaction.hash} MATCHES configuration ${config.name}`);
+      return true;
+    } catch (error) {
+      console.error(`Error in matchesConfiguration for transaction ${transaction.hash}:`, error);
       return false;
     }
+  }
 
-    if (config.toAddress && transaction.to && transaction.to.toLowerCase() !== config.toAddress.toLowerCase()) {
-      return false;
-    }
-
-    // Value matching
-    if (config.minValue && ethers.getBigInt(transaction.value) < ethers.getBigInt(config.minValue)) {
-      return false;
-    }
-
-    if (config.maxValue && ethers.getBigInt(transaction.value) > ethers.getBigInt(config.maxValue)) {
-      return false;
-    }
-
-    // If all conditions pass, it's a match
-    return true;
+  // Helper method to slow down API requests to avoid rate limiting
+  async sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
