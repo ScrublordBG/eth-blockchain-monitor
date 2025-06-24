@@ -69,8 +69,8 @@ The API implements comprehensive validation for all endpoints:
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/ScrublordBG/ethereum-blockchain-monitor.git
-cd ethereum-blockchain-monitor
+git clone https://github.com/ScrublordBG/eth-blockchain-monitor.git
+cd eth-blockchain-monitor
 ```
 
 2. Install dependencies:
