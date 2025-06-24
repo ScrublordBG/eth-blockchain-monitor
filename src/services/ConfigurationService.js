@@ -101,6 +101,22 @@ class ConfigurationService extends EventEmitter {
         throw new Error("Invalid toAddress format");
       }
 
+      if (configData.maxValue) {
+        const maxValue = parseFloat(configData.maxValue);
+        if (isNaN(maxValue) || maxValue < 0) {
+          throw new Error("maxValue must be a positive number");
+        }
+        configData.maxValue = maxValue.toString();
+      }
+
+      if (configData.minValue) {
+        const minValue = parseFloat(configData.minValue);
+        if (isNaN(minValue) || minValue < 0) {
+          throw new Error("minValue must be a positive number");
+        }
+        configData.minValue = minValue.toString();
+      }
+
       // Update the configuration
       await configuration.update(configData);
 
