@@ -40,6 +40,22 @@ class Configuration extends Model {
           type: DataTypes.STRING,
           allowNull: true,
         },
+        minGasPrice: {
+          type: DataTypes.STRING,
+          allowNull: true,
+        },
+        maxGasPrice: {
+          type: DataTypes.STRING,
+          allowNull: true,
+        },
+        minGasUsed: {
+          type: DataTypes.STRING,
+          allowNull: true,
+        },
+        maxGasUsed: {
+          type: DataTypes.STRING,
+          allowNull: true,
+        },
         blockDelay: {
           type: DataTypes.INTEGER,
           allowNull: true,

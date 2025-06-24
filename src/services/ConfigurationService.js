@@ -100,7 +100,6 @@ class ConfigurationService extends EventEmitter {
       if (configData.toAddress && !this.isValidEthereumAddress(configData.toAddress)) {
         throw new Error("Invalid toAddress format");
       }
-
       if (configData.maxValue) {
         const maxValue = parseFloat(configData.maxValue);
         if (isNaN(maxValue) || maxValue < 0) {
@@ -115,6 +114,40 @@ class ConfigurationService extends EventEmitter {
           throw new Error("minValue must be a positive number");
         }
         configData.minValue = minValue.toString();
+      }
+
+      // Validate gas price values
+      if (configData.minGasPrice) {
+        const minGasPrice = parseFloat(configData.minGasPrice);
+        if (isNaN(minGasPrice) || minGasPrice < 0) {
+          throw new Error("minGasPrice must be a positive number");
+        }
+        configData.minGasPrice = minGasPrice.toString();
+      }
+
+      if (configData.maxGasPrice) {
+        const maxGasPrice = parseFloat(configData.maxGasPrice);
+        if (isNaN(maxGasPrice) || maxGasPrice < 0) {
+          throw new Error("maxGasPrice must be a positive number");
+        }
+        configData.maxGasPrice = maxGasPrice.toString();
+      }
+
+      // Validate gas used values
+      if (configData.minGasUsed) {
+        const minGasUsed = parseFloat(configData.minGasUsed);
+        if (isNaN(minGasUsed) || minGasUsed < 0) {
+          throw new Error("minGasUsed must be a positive number");
+        }
+        configData.minGasUsed = minGasUsed.toString();
+      }
+
+      if (configData.maxGasUsed) {
+        const maxGasUsed = parseFloat(configData.maxGasUsed);
+        if (isNaN(maxGasUsed) || maxGasUsed < 0) {
+          throw new Error("maxGasUsed must be a positive number");
+        }
+        configData.maxGasUsed = maxGasUsed.toString();
       }
 
       // Update the configuration

@@ -211,15 +211,37 @@ class EthereumMonitor extends EventEmitter {
             let txReceipt = null;
             const needsReceipt =
               tx.to === null || // Contract creation
-              config.requireSuccessfulTx; // If we only want successful txs
+              config.requireSuccessfulTx || // If we only want successful txs
+              config.minGasUsed || // If we need to check gasUsed
+              config.maxGasUsed; // If we need to check gasUsed
 
             if (needsReceipt) {
               await this.sleep(200);
               txReceipt = await this.provider.getTransactionReceipt(tx.hash);
 
+              // Skip failed transactions if config requires successful ones
               if (config.requireSuccessfulTx && (!txReceipt || txReceipt.status !== 1)) {
                 console.log(`Skipping failed transaction ${tx.hash}`);
                 continue;
+              }
+
+              // Check gasUsed filters (only available in receipt)
+              if (txReceipt && txReceipt.gasUsed) {
+                if (config.minGasUsed) {
+                  const minGasUsed = ethers.getBigInt(config.minGasUsed);
+                  if (txReceipt.gasUsed < minGasUsed) {
+                    console.log(`Gas used below minimum: ${txReceipt.gasUsed} < ${minGasUsed}`);
+                    continue;
+                  }
+                }
+
+                if (config.maxGasUsed) {
+                  const maxGasUsed = ethers.getBigInt(config.maxGasUsed);
+                  if (txReceipt.gasUsed > maxGasUsed) {
+                    console.log(`Gas used above maximum: ${txReceipt.gasUsed} > ${maxGasUsed}`);
+                    continue;
+                  }
+                }
               }
             }
 
@@ -264,7 +286,6 @@ class EthereumMonitor extends EventEmitter {
           return false;
         }
       }
-
       if (config.maxValue) {
         const txValue = transaction.value || 0n; // Default to 0 if undefined
         const maxValue = ethers.getBigInt(config.maxValue);
@@ -273,6 +294,30 @@ class EthereumMonitor extends EventEmitter {
           return false;
         }
       }
+
+      // Gas price filtering
+      if (config.minGasPrice && transaction.gasPrice) {
+        const txGasPrice = transaction.gasPrice;
+        const minGasPrice = ethers.getBigInt(config.minGasPrice);
+
+        if (txGasPrice < minGasPrice) {
+          console.log(`Gas price below minimum: ${txGasPrice} < ${minGasPrice}`);
+          return false;
+        }
+      }
+
+      if (config.maxGasPrice && transaction.gasPrice) {
+        const txGasPrice = transaction.gasPrice;
+        const maxGasPrice = ethers.getBigInt(config.maxGasPrice);
+
+        if (txGasPrice > maxGasPrice) {
+          console.log(`Gas price above maximum: ${txGasPrice} > ${maxGasPrice}`);
+          return false;
+        }
+      }
+
+      // Note: gasUsed is only available in the receipt, not in the transaction
+      // We'll need to add this check after we fetch the receipt in processBlockTransactions
 
       console.log(`Transaction ${transaction.hash} MATCHES configuration ${config.name}`);
       return true;
