@@ -10,7 +10,7 @@ const sampleConfigurations = [
     name: "High Value Transfers",
     description: "Monitor transactions with value greater than 100 ETH",
     active: true,
-    minValue: "100000000000000000000", // 100 ETH in wei
+    minValue: "10000000000000000000", // 10 ETH in wei
   },
   {
     name: "Specific Address Monitor",
@@ -22,7 +22,7 @@ const sampleConfigurations = [
     name: "Delayed Block Processing",
     description: "Process transactions with a 10 block delay",
     active: true,
-    minValue: "10000000000000000000", // 10 ETH in wei
+    minValue: "1000000000000000000", // 1 ETH in wei
     blockDelay: 10,
   },
 ];

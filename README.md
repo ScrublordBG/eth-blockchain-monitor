@@ -32,7 +32,7 @@ A NodeJS application that monitors Ethereum blockchain transactions and filters 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/ethereum-blockchain-monitor.git
+git clone https://github.com/ScrublordBG/ethereum-blockchain-monitor.git
 cd ethereum-blockchain-monitor
 ```
 
@@ -55,8 +55,6 @@ DB_PATH=./data/ethereum_monitoring.sqlite
 INFURA_API_KEY=YOUR_INFURA_API_KEY
 ETHEREUM_NETWORK=mainnet
 
-# Logging Configuration
-LOG_LEVEL=info
 ```
 
 4. Replace `YOUR_INFURA_API_KEY` with your actual Infura API key.
