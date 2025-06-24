@@ -186,9 +186,8 @@ class EthereumMonitor extends EventEmitter {
     // Get block timestamp
     const timestamp = new Date(block.timestamp * 1000);
 
-
     console.log(`Processing ${transactions.length} transactions from block #${block.number}`);
-
+    let successfullyProcessed = new Set();
     for (const tx of transactions) {
       try {
         if (!tx) {
@@ -198,7 +197,7 @@ class EthereumMonitor extends EventEmitter {
 
         for (const config of configurations) {
           if (this.matchesConfiguration(tx, config)) {
-            await this.transactionService.saveTransaction({
+            const txResult = await this.transactionService.saveTransaction({
               configurationId: config.id,
               transactionHash: tx.hash,
               blockNumber: block.number,
@@ -214,12 +213,18 @@ class EthereumMonitor extends EventEmitter {
               timestamp,
               rawData: JSON.stringify(tx),
             });
+
+            successfullyProcessed.add(txResult.id);
           }
         }
       } catch (error) {
         console.error(`Error processing transaction ${tx.hash || "unknown"}:`, error);
       }
     }
+
+    console.log(
+      `Successfully processed ${transactions.length} transactions from block #${block.number} (${successfullyProcessed.size} tx matched ${configurations.length} configurations)`
+    );
   }
 
   matchesConfiguration(transaction, config) {
@@ -249,13 +254,11 @@ class EthereumMonitor extends EventEmitter {
         }
       }
 
-      // Gas price filtering
       if (config.minGasPrice && transaction.gasPrice) {
         const txGasPrice = transaction.gasPrice;
         const minGasPrice = ethers.getBigInt(config.minGasPrice);
 
         if (txGasPrice < minGasPrice) {
-          console.log(`Gas price below minimum: ${txGasPrice} < ${minGasPrice}`);
           return false;
         }
       }
@@ -265,12 +268,10 @@ class EthereumMonitor extends EventEmitter {
         const maxGasPrice = ethers.getBigInt(config.maxGasPrice);
 
         if (txGasPrice > maxGasPrice) {
-          console.log(`Gas price above maximum: ${txGasPrice} > ${maxGasPrice}`);
           return false;
         }
       }
 
-      console.log(`Transaction ${transaction.hash} MATCHES configuration ${config.name}`);
       return true;
     } catch (error) {
       console.error(`Error in matchesConfiguration for transaction ${transaction.hash}:`, error);

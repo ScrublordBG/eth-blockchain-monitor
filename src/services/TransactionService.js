@@ -13,13 +13,11 @@ class TransactionService {
       });
 
       if (existingTransaction) {
-        console.log(`Transaction ${transactionData.transactionHash} already exists`);
         return existingTransaction;
       }
 
       // Create the transaction
       const transaction = await this.Transaction.create(transactionData);
-      console.log(`Transaction ${transactionData.transactionHash} saved successfully`);
 
       return transaction;
     } catch (error) {
