@@ -188,8 +188,8 @@ class EthereumMonitor extends EventEmitter {
     // Process each transaction hash by fetching the full transaction details
     for (const txHash of block.transactions) {
       try {
-        // Add a delay to avoid rate limiting (200ms between requests)
-        await this.sleep(200);
+        // Add a delay to avoid rate limiting (300ms between requests)
+        await this.sleep(300);
 
         // Get full transaction details
         const tx = await this.provider.getTransaction(txHash);
@@ -202,14 +202,24 @@ class EthereumMonitor extends EventEmitter {
         // Check transaction against all configurations
         for (const config of configurations) {
           if (this.matchesConfiguration(tx, config)) {
-            console.log(`Transaction ${tx.hash} matches configuration ${config.name}`);
+            console.log(`Transaction ${tx.hash} matches configuration ${config.name}`);            // Only fetch receipt if we need additional data not in the transaction
+            let txReceipt = null;
+            const needsReceipt =
+              tx.to === null || // Contract creation
+              (config.requireSuccessfulTx === true); // If we only want successful txs
 
-            // Add another delay before getting the receipt
-            await this.sleep(200);
+            if (needsReceipt) {
+              // Add another delay before getting the receipt
+              await this.sleep(200);
+              txReceipt = await this.provider.getTransactionReceipt(tx.hash);
+              console.log("Transaction Receipt:", txReceipt);
 
-            // Get additional transaction details if needed
-            const txReceipt = await this.provider.getTransactionReceipt(tx.hash);
-            console.log("Tx Value:", tx);
+              // Skip failed transactions if config requires successful ones
+              if (config.requireSuccessfulTx === true && (!txReceipt || txReceipt.status !== 1)) {
+                console.log(`Skipping failed transaction ${tx.hash}`);
+                continue;
+              }
+            }
 
             // Save the transaction
             await this.transactionService.saveTransaction({
@@ -220,11 +230,10 @@ class EthereumMonitor extends EventEmitter {
               from: tx.from,
               to: tx.to || null, // Handle contract creation transactions
               value: tx.value ? tx.value.toString() : "0",
-              gasUsed: txReceipt && txReceipt.gasUsed ? txReceipt.gasUsed.toString() : "0",
+              gasUsed: txReceipt && txReceipt.gasUsed ? txReceipt.gasUsed.toString() : tx.gasLimit.toString(),
               gasPrice: tx.gasPrice ? tx.gasPrice.toString() : "0",
               input: tx.data || "0x",
               nonce: tx.nonce,
-              contractAddress: txReceipt ? txReceipt.contractAddress : null,
               status: txReceipt ? txReceipt.status : null,
               timestamp,
               rawData: JSON.stringify(tx),
@@ -239,12 +248,10 @@ class EthereumMonitor extends EventEmitter {
   matchesConfiguration(transaction, config) {
     try {
       if (config.fromAddress && transaction.from && transaction.from.toLowerCase() !== config.fromAddress.toLowerCase()) {
-        console.log(`From address doesn't match: ${transaction.from} vs ${config.fromAddress}`);
         return false;
       }
 
       if (config.toAddress && transaction.to && transaction.to.toLowerCase() !== config.toAddress.toLowerCase()) {
-        console.log(`To address doesn't match: ${transaction.to} vs ${config.toAddress}`);
         return false;
       }
 
