@@ -148,7 +148,6 @@ class EthereumMonitor extends EventEmitter {
 
       const realTimeConfigs = this.activeConfigurations.filter((config) => !config.blockDelay || config.blockDelay === 0);
 
-      // Process transactions
       await this.processBlockTransactions(block, realTimeConfigs);
 
       return true;
@@ -234,7 +233,7 @@ class EthereumMonitor extends EventEmitter {
       }
 
       if (config.minValue) {
-        const txValue = transaction.value || 0n; // Default to 0 if undefined
+        const txValue = transaction.value || 0n;
         const minValue = ethers.getBigInt(config.minValue);
 
         if (txValue < minValue) {
@@ -242,7 +241,7 @@ class EthereumMonitor extends EventEmitter {
         }
       }
       if (config.maxValue) {
-        const txValue = transaction.value || 0n; // Default to 0 if undefined
+        const txValue = transaction.value || 0n;
         const maxValue = ethers.getBigInt(config.maxValue);
 
         if (txValue > maxValue) {
@@ -277,11 +276,6 @@ class EthereumMonitor extends EventEmitter {
       console.error(`Error in matchesConfiguration for transaction ${transaction.hash}:`, error);
       return false;
     }
-  }
-
-  // Helper method to slow down API requests to avoid rate limiting
-  async sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
