@@ -61,11 +61,6 @@ class Configuration extends Model {
           allowNull: true,
           defaultValue: 0,
         },
-        requireSuccessfulTx: {
-          type: DataTypes.BOOLEAN,
-          allowNull: true,
-          defaultValue: true,
-        },
         createdAt: {
           type: DataTypes.DATE,
           defaultValue: DataTypes.NOW,

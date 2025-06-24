@@ -103,13 +103,11 @@ class EthereumMonitor extends EventEmitter {
         }
       }, 100);
 
-      // Listen for new blocks
       this.provider.on("block", async (blockNumber) => {
         try {
           await this.processBlock(blockNumber);
           this.lastProcessedBlock = blockNumber;
 
-          // Process delayed blocks
           await this.processDelayedBlocks(blockNumber);
         } catch (error) {
           console.error(`Error processing block #${blockNumber}:`, error);
@@ -130,7 +128,6 @@ class EthereumMonitor extends EventEmitter {
     }
 
     try {
-      // Remove all event listeners
       this.provider.removeAllListeners("block");
       this.isRunning = false;
       console.log("Ethereum monitoring stopped");
@@ -142,15 +139,13 @@ class EthereumMonitor extends EventEmitter {
     console.log(`Processing block #${blockNumber}`);
 
     try {
-      // Get block with transaction hashes
-      const block = await this.provider.getBlock(blockNumber);
+      const block = await this.provider.getBlock(blockNumber, true);
 
       if (!block) {
         console.warn(`Block #${blockNumber} not found`);
         return;
       }
 
-      // Get real-time configurations (no delay)
       const realTimeConfigs = this.activeConfigurations.filter((config) => !config.blockDelay || config.blockDelay === 0);
 
       // Process transactions
@@ -169,7 +164,7 @@ class EthereumMonitor extends EventEmitter {
         try {
           console.log(`Processing delayed block #${targetBlockNumber} with delay ${delay}`);
 
-          const block = await this.provider.getBlock(targetBlockNumber);
+          const block = await this.provider.getBlock(targetBlockNumber, true);
 
           if (!block) {
             console.warn(`Delayed block #${targetBlockNumber} not found`);
@@ -184,90 +179,50 @@ class EthereumMonitor extends EventEmitter {
     }
   }
   async processBlockTransactions(block, configurations) {
-    if (!block || !block.transactions || block.transactions.length === 0) {
+    const transactions = block.prefetchedTransactions;
+    if (!block || !transactions || transactions.length === 0) {
       return;
     }
 
     // Get block timestamp
     const timestamp = new Date(block.timestamp * 1000);
 
-    // Process each transaction hash by fetching the full transaction details
-    for (const txHash of block.transactions) {
+
+    console.log(`Processing ${transactions.length} transactions from block #${block.number}`);
+
+    for (const tx of transactions) {
       try {
-        // Add a delay to avoid rate limiting (300ms between requests)
-        await this.sleep(300);
-
-        // Get full transaction details
-        const tx = await this.provider.getTransaction(txHash);
-
         if (!tx) {
-          console.warn(`Transaction ${txHash} not found`);
+          console.warn(`Transaction in block ${block.number} not found`);
           continue;
         }
 
-        // Check transaction against all configurations
         for (const config of configurations) {
           if (this.matchesConfiguration(tx, config)) {
-            let txReceipt = null;
-            const needsReceipt =
-              tx.to === null || // Contract creation
-              config.requireSuccessfulTx || // If we only want successful txs
-              config.minGasUsed || // If we need to check gasUsed
-              config.maxGasUsed; // If we need to check gasUsed
-
-            if (needsReceipt) {
-              await this.sleep(200);
-              txReceipt = await this.provider.getTransactionReceipt(tx.hash);
-
-              // Skip failed transactions if config requires successful ones
-              if (config.requireSuccessfulTx && (!txReceipt || txReceipt.status !== 1)) {
-                console.log(`Skipping failed transaction ${tx.hash}`);
-                continue;
-              }
-
-              // Check gasUsed filters (only available in receipt)
-              if (txReceipt && txReceipt.gasUsed) {
-                if (config.minGasUsed) {
-                  const minGasUsed = ethers.getBigInt(config.minGasUsed);
-                  if (txReceipt.gasUsed < minGasUsed) {
-                    console.log(`Gas used below minimum: ${txReceipt.gasUsed} < ${minGasUsed}`);
-                    continue;
-                  }
-                }
-
-                if (config.maxGasUsed) {
-                  const maxGasUsed = ethers.getBigInt(config.maxGasUsed);
-                  if (txReceipt.gasUsed > maxGasUsed) {
-                    console.log(`Gas used above maximum: ${txReceipt.gasUsed} > ${maxGasUsed}`);
-                    continue;
-                  }
-                }
-              }
-            }
-
             await this.transactionService.saveTransaction({
               configurationId: config.id,
               transactionHash: tx.hash,
               blockNumber: block.number,
               blockHash: block.hash,
               from: tx.from,
-              to: tx.to || null, // Handle contract creation transactions
+              to: tx.to || null,
               value: tx.value ? tx.value.toString() : "0",
-              gasUsed: txReceipt && txReceipt.gasUsed ? txReceipt.gasUsed.toString() : tx.gasLimit.toString(),
+              gasUsed: tx.gasLimit ? tx.gasLimit.toString() : "0",
               gasPrice: tx.gasPrice ? tx.gasPrice.toString() : "0",
               input: tx.data || "0x",
               nonce: tx.nonce,
-              status: txReceipt ? txReceipt.status : null,
+              status: null,
               timestamp,
               rawData: JSON.stringify(tx),
             });
           }
         }
       } catch (error) {
-        console.error(`Error processing transaction ${typeof txHash === "string" ? txHash : "unknown"}:`, error);
+        console.error(`Error processing transaction ${tx.hash || "unknown"}:`, error);
       }
     }
   }
+
   matchesConfiguration(transaction, config) {
     try {
       if (config.fromAddress && transaction.from && transaction.from.toLowerCase() !== config.fromAddress.toLowerCase()) {
@@ -315,9 +270,6 @@ class EthereumMonitor extends EventEmitter {
           return false;
         }
       }
-
-      // Note: gasUsed is only available in the receipt, not in the transaction
-      // We'll need to add this check after we fetch the receipt in processBlockTransactions
 
       console.log(`Transaction ${transaction.hash} MATCHES configuration ${config.name}`);
       return true;
