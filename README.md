@@ -135,13 +135,13 @@ npm run dev
 
 - `GET /api/transactions` - Get all transactions
   - Query parameters:
-    - `limit` (optional): Limit the number of results
-    - `offset` (optional): Offset for pagination
+    - `limit` (optional): Limit the number of result pagination
+    - `page` (optional): Page number for pagination
 - `GET /api/transactions/hash/:hash` - Get a transaction by its hash
 - `GET /api/configurations/:configurationId/transactions` - Get transactions for a specific configuration
   - Query parameters:
-    - `limit` (optional): Limit the number of results
-    - `offset` (optional): Offset for pagination
+    - `limit` (optional): Limit the number of result pagination
+    - `page` (optional): Page number for pagination
 
 ## Configuration Options
 
