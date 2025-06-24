@@ -94,6 +94,8 @@ class EthereumMonitor extends EventEmitter {
       this.lastProcessedBlock = latestBlock;
       console.log(`Starting from block #${latestBlock}`);
 
+      await this.processBlock(latestBlock);
+
       // Listen for new blocks
       this.provider.on("block", async (blockNumber) => {
         try {
@@ -154,14 +156,12 @@ class EthereumMonitor extends EventEmitter {
     }
   }
   async processDelayedBlocks(currentBlockNumber) {
-    // Process all delayed configurations
     for (const [delay, configs] of this.blockDelayMap.entries()) {
       if (currentBlockNumber >= delay) {
         const targetBlockNumber = currentBlockNumber - delay;
         try {
           console.log(`Processing delayed block #${targetBlockNumber} with delay ${delay}`);
 
-          // Get block with transaction hashes
           const block = await this.provider.getBlock(targetBlockNumber);
 
           if (!block) {
@@ -169,7 +169,6 @@ class EthereumMonitor extends EventEmitter {
             continue;
           }
 
-          // Process transactions with delayed configurations
           await this.processBlockTransactions(block, configs);
         } catch (error) {
           console.error(`Error processing delayed block #${targetBlockNumber}:`, error);
@@ -202,28 +201,22 @@ class EthereumMonitor extends EventEmitter {
         // Check transaction against all configurations
         for (const config of configurations) {
           if (this.matchesConfiguration(tx, config)) {
-            console.log(`Transaction ${tx.hash} matches configuration ${config.name}`);
 
-            // Only fetch receipt if we need additional data not in the transaction
             let txReceipt = null;
             const needsReceipt =
               tx.to === null || // Contract creation
               config.requireSuccessfulTx; // If we only want successful txs
 
             if (needsReceipt) {
-              // Add another delay before getting the receipt
               await this.sleep(200);
               txReceipt = await this.provider.getTransactionReceipt(tx.hash);
-              console.log("Transaction Receipt:", txReceipt);
 
-              // Skip failed transactions if config requires successful ones
               if (config.requireSuccessfulTx && (!txReceipt || txReceipt.status !== 1)) {
                 console.log(`Skipping failed transaction ${tx.hash}`);
                 continue;
               }
             }
 
-            // Save the transaction
             await this.transactionService.saveTransaction({
               configurationId: config.id,
               transactionHash: tx.hash,
@@ -262,7 +255,6 @@ class EthereumMonitor extends EventEmitter {
         const minValue = ethers.getBigInt(config.minValue);
 
         if (txValue < minValue) {
-          console.log(`Value below minimum: ${txValue} < ${minValue}`);
           return false;
         }
       }
@@ -272,7 +264,6 @@ class EthereumMonitor extends EventEmitter {
         const maxValue = ethers.getBigInt(config.maxValue);
 
         if (txValue > maxValue) {
-          console.log(`Value above maximum: ${txValue} > ${maxValue}`);
           return false;
         }
       }
