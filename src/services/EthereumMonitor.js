@@ -202,11 +202,13 @@ class EthereumMonitor extends EventEmitter {
         // Check transaction against all configurations
         for (const config of configurations) {
           if (this.matchesConfiguration(tx, config)) {
-            console.log(`Transaction ${tx.hash} matches configuration ${config.name}`);            // Only fetch receipt if we need additional data not in the transaction
+            console.log(`Transaction ${tx.hash} matches configuration ${config.name}`);
+
+            // Only fetch receipt if we need additional data not in the transaction
             let txReceipt = null;
             const needsReceipt =
               tx.to === null || // Contract creation
-              (config.requireSuccessfulTx === true); // If we only want successful txs
+              config.requireSuccessfulTx; // If we only want successful txs
 
             if (needsReceipt) {
               // Add another delay before getting the receipt
@@ -215,7 +217,7 @@ class EthereumMonitor extends EventEmitter {
               console.log("Transaction Receipt:", txReceipt);
 
               // Skip failed transactions if config requires successful ones
-              if (config.requireSuccessfulTx === true && (!txReceipt || txReceipt.status !== 1)) {
+              if (config.requireSuccessfulTx && (!txReceipt || txReceipt.status !== 1)) {
                 console.log(`Skipping failed transaction ${tx.hash}`);
                 continue;
               }
